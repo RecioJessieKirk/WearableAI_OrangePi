@@ -155,7 +155,7 @@ def load_model():
     model = torch.hub.load(
         r'Data Cleaning Training/yolov5', 
         'custom', 
-        path=r'Data Cleaning Training/yolomodels/yolov5n.onnx',
+        path=r'Data Cleaning Training/trainedyolomodel/best_exp_28_50.pt',
         source='local',
         force_reload=True
     ).to(device)

@@ -22,7 +22,7 @@ if camera_index is None:
     exit()
 
 # ✅ Initialize YOLO model
-model = YOLO("yolomodels/yolov5n.pt")
+model = YOLO("yolomodels/yolov8n.pt")
 
 # ✅ Initialize Text-to-Speech (TTS)
 engine = pyttsx3.init()
