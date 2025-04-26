@@ -1,14 +1,15 @@
 # Whisper (speech-to-text)
 git+https://github.com/openai/whisper.git
 
+# Core ML libraries
+torch
+torchvision
+
 # Audio I/O
 pyaudio
 
 # Numerical computing
 numpy
-
-# PyTorch (CPU-only)
-torch
 
 # Offline text-to-speech
 pyttsx3
@@ -16,12 +17,22 @@ pyttsx3
 # Transformers (for BERT embeddings)
 transformers
 
-# Computer-vision & OCR
+# Keyboard key-press detection
+keyboard
+
+# Computer vision
 opencv-python
+pillow        # PIL support (only if some libs fall back to it)
+scipy         # required by EasyOCR
+
+# OCR
 easyocr
 
 # Data handling (used by YOLOv5’s .pandas() API)
 pandas
 
-# Keyboard key-press detection
-keyboard
+# YOLOv5 utilities
+PyYAML        # reading model/config YAML
+tqdm          # progress bars
+seaborn       # plotting (optional, used by YOLOv5)
+matplotlib    # plotting (optional, used by YOLOv5)
