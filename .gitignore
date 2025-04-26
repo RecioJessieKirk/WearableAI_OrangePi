@@ -9,5 +9,5 @@ tokenizer_config.json
 vocab.txt
 tokenizer.json
 distilbert-base-nli-stsb-mean-tokens
-distilbert-base-nli-stsb-mean-tokens.zip
+
 local_model
