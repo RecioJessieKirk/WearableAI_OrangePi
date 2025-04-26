@@ -10,6 +10,8 @@ import torch.nn.functional as F
 import wave
 import io
 import keyboard  # For real-time key press detection
+import subprocess
+import sys
 
 # === TEXT-TO-SPEECH SETUP ===
 engine = pyttsx3.init()
@@ -56,7 +58,7 @@ def get_embedding(text):
 commands = [
     "Open Object Detection",
     "Read the text",
-    "exit"
+    "Exit"
 ]
 command_embeddings = [get_embedding(cmd) for cmd in commands]
 threshold = 0.6
@@ -118,6 +120,46 @@ def match_command(text):
             return commands[i], sim
     return None, None
 
+# === FUNCTION TO LAUNCH OBJECT DETECTION ===
+def open_object_detection():
+    speak("Opening object detection. Hold 'C' for 3.5 seconds to return.")
+
+    process = subprocess.Popen([sys.executable, "cv_yolov5_pt.py"])
+
+    c_hold_start = None
+    while True:
+        if keyboard.is_pressed('c'):
+            if c_hold_start is None:
+                c_hold_start = time.time()
+            elif time.time() - c_hold_start >= 3.5:
+                speak("Returning to NLP control.")
+                process.terminate()
+                break
+        else:
+            c_hold_start = None
+
+        time.sleep(0.1)
+
+# === FUNCTION TO LAUNCH OCR ===
+def open_ocr():
+    speak("Opening text reading. Hold 'C' for 3.5 seconds to return.")
+
+    process = subprocess.Popen([sys.executable, "cv_ocr.py"])
+
+    c_hold_start = None
+    while True:
+        if keyboard.is_pressed('c'):
+            if c_hold_start is None:
+                c_hold_start = time.time()
+            elif time.time() - c_hold_start >= 3.5:
+                speak("Returning to NLP control.")
+                process.terminate()
+                break
+        else:
+            c_hold_start = None
+
+        time.sleep(0.1)
+
 # === MAIN LOOP ===
 print("🤖 Ready. 🔵 Press and hold 'C' to speak. Say 'exit' to stop.")
 try:
@@ -145,14 +187,21 @@ try:
             if matched_cmd:
                 speak(f"Matched command: {matched_cmd}")
                 print(f"✅ Matched Command: {matched_cmd} (Similarity: {sim:.2f})")
-                if matched_cmd == "exit":
+
+                if matched_cmd == "Open Object Detection":
+                    open_object_detection()
+
+                elif matched_cmd == "Read the text":
+                    open_ocr()
+
+                elif matched_cmd == "Exit":
                     speak("Exiting the program.")
                     break
             else:
                 speak("Sorry, I didn't understand that.")
                 print("❌ No matching command found.")
 
-            print("🔵 Press C to Speak")  # Print reminder after every interaction
+            print("🔵 Press C to Speak")
 
         time.sleep(0.1)  # avoid high CPU usage
 

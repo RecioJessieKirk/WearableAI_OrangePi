@@ -1,7 +1,11 @@
 modify_files
 junk
-local_model
-local_whisper_model
 project-nlp
 yaml_files
-yolomodels
+config.json
+model.safetensors
+special_tokens_map.json
+tokenizer_config.json
+vocab.txt
+tokenizer.json
+distilbert-base-nli-stsb-mean-tokens
