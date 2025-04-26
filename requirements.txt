@@ -1,0 +1,27 @@
+# Whisper (speech-to-text)
+git+https://github.com/openai/whisper.git
+
+# Audio I/O
+pyaudio
+
+# Numerical computing
+numpy
+
+# PyTorch (CPU-only)
+torch
+
+# Offline text-to-speech
+pyttsx3
+
+# Transformers (for BERT embeddings)
+transformers
+
+# Computer-vision & OCR
+opencv-python
+easyocr
+
+# Data handling (used by YOLOv5’s .pandas() API)
+pandas
+
+# Keyboard key-press detection
+keyboard
