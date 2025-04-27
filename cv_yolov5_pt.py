@@ -2,17 +2,17 @@ import torch
 import cv2
 import pyttsx3
 import time
-import keyboard
 import numpy as np
 import sys
 import warnings
+from pynput import keyboard  # ✅ New: using pynput
 
 # Suppress warnings
 warnings.simplefilter("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=FutureWarning, module="torch")
 
 def main():
-    # ✅ Initialize TTS engine (moved up so it's global inside main)
+    # ✅ Initialize TTS engine
     engine = pyttsx3.init()
 
     # ✅ Function to speak and print
@@ -42,18 +42,56 @@ def main():
     ).to(device)
     model.eval()
 
-    # ✅ Track object announcements
+    # ✅ Initialize state tracking
     last_announced_object = None
+    y_pressed = False
+    c_pressed = False
+    esc_pressed = False
+
     y_pressed_time = None
     c_pressed_time = None
-    y_hold_duration = 3
-    c_hold_duration = 3.5
+    y_hold_duration = 3  # seconds
+    c_hold_duration = 3.5  # seconds
 
-    # ✅ Get available camera
+    # ✅ Define key press and release handlers
+    def on_press(key):
+        nonlocal y_pressed, c_pressed, esc_pressed, y_pressed_time, c_pressed_time
+
+        try:
+            if key.char == 'y':
+                if not y_pressed:
+                    y_pressed = True
+                    y_pressed_time = time.time()
+            if key.char == 'c':
+                if not c_pressed:
+                    c_pressed = True
+                    c_pressed_time = time.time()
+        except AttributeError:
+            if key == keyboard.Key.esc:
+                esc_pressed = True
+
+    def on_release(key):
+        nonlocal y_pressed, c_pressed, y_pressed_time, c_pressed_time
+
+        try:
+            if key.char == 'y':
+                y_pressed = False
+                y_pressed_time = None
+            if key.char == 'c':
+                c_pressed = False
+                c_pressed_time = None
+        except AttributeError:
+            pass
+
+    # ✅ Set up pynput listener
+    listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+    listener.start()
+
+    # ✅ Get camera
     camera_index = get_camera_index()
     if camera_index is None:
         speak("No available camera found. Exiting.")
-        return  # Use return instead of sys.exit()
+        return
 
     cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
@@ -70,7 +108,6 @@ def main():
             h, w, _ = frame.shape
             center_x, center_y = w // 2, h // 2
 
-            # ✅ Convert frame for YOLOv5
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = model(frame_rgb)
             detections = results.pandas().xyxy[0]
@@ -78,7 +115,6 @@ def main():
             closest_object = None
             min_distance = float('inf')
 
-            # ✅ Process detections
             for _, det in detections.iterrows():
                 obj_name = det['name']
                 x1, y1, x2, y2 = int(det['xmin']), int(det['ymin']), int(det['xmax']), int(det['ymax'])
@@ -91,32 +127,24 @@ def main():
                     min_distance = distance
                     closest_object = obj_name
 
-            # ✅ Detect if 'Y' is held
-            if keyboard.is_pressed('y'):
-                if y_pressed_time is None:
-                    y_pressed_time = time.time()
-                elif (time.time() - y_pressed_time) >= y_hold_duration:
+            # ✅ Handle Y hold
+            if y_pressed and y_pressed_time:
+                if (time.time() - y_pressed_time) >= y_hold_duration:
                     if closest_object:
                         if closest_object != last_announced_object:
                             speak(f"Announcing {closest_object}")
                         else:
                             speak(f"Still detecting {closest_object}")
                         last_announced_object = closest_object
-                    y_pressed_time = None
-            else:
-                y_pressed_time = None
+                    y_pressed_time = None  # Reset so it only announces once per hold
 
-            # ✅ Detect if 'C' is held (new logic)
-            if keyboard.is_pressed('c'):
-                if c_pressed_time is None:
-                    c_pressed_time = time.time()
-                elif (time.time() - c_pressed_time) >= c_hold_duration:
+            # ✅ Handle C hold
+            if c_pressed and c_pressed_time:
+                if (time.time() - c_pressed_time) >= c_hold_duration:
                     speak("Switching back to NLP.")
-                    break  # Exit gracefully
-            else:
-                c_pressed_time = None
+                    break
 
-            # ✅ Draw detections
+            # ✅ Draw Detections
             for _, det in detections.iterrows():
                 x1, y1, x2, y2 = int(det['xmin']), int(det['ymin']), int(det['xmax']), int(det['ymax'])
                 obj_name = det['name']
@@ -125,18 +153,16 @@ def main():
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                 cv2.putText(frame, obj_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-            # ✅ Crosshair
             cv2.drawMarker(frame, (center_x, center_y), (255, 0, 0), markerType=cv2.MARKER_CROSS, markerSize=20, thickness=2)
 
-            # ✅ Display frame
             cv2.imshow("YOLOv5 Detection", frame)
 
             if cv2.getWindowProperty("YOLOv5 Detection", cv2.WND_PROP_VISIBLE) < 1:
                 speak("Window closed.")
                 break
 
-            if keyboard.is_pressed('esc') or keyboard.is_pressed('q'):
-                speak("Exiting detection.")
+            if esc_pressed:
+                speak("ESC pressed. Exiting.")
                 break
 
             cv2.waitKey(1)
@@ -147,6 +173,7 @@ def main():
     finally:
         cap.release()
         cv2.destroyAllWindows()
+        listener.stop()  # ✅ Stop the pynput listener
         speak("Resources cleaned up.")
 
 if __name__ == "__main__":
