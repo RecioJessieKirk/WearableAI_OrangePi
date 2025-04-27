@@ -12,6 +12,15 @@ warnings.simplefilter("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=FutureWarning, module="torch")
 
 def main():
+    # ✅ Initialize TTS engine (moved up so it's global inside main)
+    engine = pyttsx3.init()
+
+    # ✅ Function to speak and print
+    def speak(text):
+        print(text)
+        engine.say(text)
+        engine.runAndWait()
+
     # ✅ Function to Detect and Open First Available Camera
     def get_camera_index():
         for index in range(5):
@@ -23,7 +32,7 @@ def main():
 
     # ✅ Load YOLOv5 model using PyTorch Hub
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    speak(f"Using device: {device}")
     model = torch.hub.load(
         './yolov5',
         'custom',
@@ -32,9 +41,6 @@ def main():
         force_reload=True
     ).to(device)
     model.eval()
-
-    # ✅ Initialize TTS engine
-    engine = pyttsx3.init()
 
     # ✅ Track object announcements
     last_announced_object = None
@@ -46,19 +52,19 @@ def main():
     # ✅ Get available camera
     camera_index = get_camera_index()
     if camera_index is None:
-        print("No available camera found. Exiting...")
+        speak("No available camera found. Exiting.")
         return  # Use return instead of sys.exit()
 
     cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
-        print("Camera failed to open. Exiting...")
+        speak("Camera failed to open. Exiting.")
         return
 
     try:
         while True:
             ret, frame = cap.read()
             if not ret:
-                print("Failed to grab frame.")
+                speak("Failed to grab frame.")
                 break
 
             h, w, _ = frame.shape
@@ -92,23 +98,20 @@ def main():
                 elif (time.time() - y_pressed_time) >= y_hold_duration:
                     if closest_object:
                         if closest_object != last_announced_object:
-                            print(f"Announcing: {closest_object}")
-                            engine.say(f"{closest_object}")
+                            speak(f"Announcing {closest_object}")
                         else:
-                            print(f"Still detecting: {closest_object}")
-                            engine.say(f"Still detecting {closest_object}")
-                        engine.runAndWait()
+                            speak(f"Still detecting {closest_object}")
                         last_announced_object = closest_object
                     y_pressed_time = None
             else:
                 y_pressed_time = None
 
-            # ✅ Detect if 'C' is held (new logic!)
+            # ✅ Detect if 'C' is held (new logic)
             if keyboard.is_pressed('c'):
                 if c_pressed_time is None:
                     c_pressed_time = time.time()
                 elif (time.time() - c_pressed_time) >= c_hold_duration:
-                    print("Switching back to NLP...")
+                    speak("Switching back to NLP.")
                     break  # Exit gracefully
             else:
                 c_pressed_time = None
@@ -129,22 +132,22 @@ def main():
             cv2.imshow("YOLOv5 Detection", frame)
 
             if cv2.getWindowProperty("YOLOv5 Detection", cv2.WND_PROP_VISIBLE) < 1:
-                print("Window closed.")
+                speak("Window closed.")
                 break
 
             if keyboard.is_pressed('esc') or keyboard.is_pressed('q'):
-                print("Exiting...")
+                speak("Exiting detection.")
                 break
 
             cv2.waitKey(1)
 
     except KeyboardInterrupt:
-        print("Interrupted manually.")
+        speak("Interrupted manually.")
 
     finally:
         cap.release()
         cv2.destroyAllWindows()
-        print("Resources cleaned up.")
+        speak("Resources cleaned up.")
 
 if __name__ == "__main__":
     main()

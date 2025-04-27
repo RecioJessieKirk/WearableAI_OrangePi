@@ -1,7 +1,6 @@
 import easyocr
 import cv2
 import pyttsx3
-import keyboard
 import time
 import warnings
 import sys  # ➡️ added for clean exit
@@ -37,18 +36,18 @@ def process_image(image):
     print("[Y] Read | [N] Skip")
 
     while True:
-        if keyboard.is_pressed('y'):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('y'):
             engine.say("Reading the text now.")
             for (_, text, _) in results:
                 engine.say(text)
             engine.runAndWait()
             break
-        elif keyboard.is_pressed('n'):
+        elif key == ord('n'):
             print("Skipped.")
             engine.say("Okay, skipping.")
             engine.runAndWait()
             break
-        time.sleep(0.1)
 
 # ✅ Main camera loop
 def main():
@@ -62,6 +61,7 @@ def main():
     print("Press 'Q' to quit immediately.")
 
     hold_start = None  # ➡️ To track how long 'C' is held
+    capture_ready = True  # ➡️ Control capture behavior
 
     while True:
         ret, frame = cap.read()
@@ -72,8 +72,9 @@ def main():
         # Display the live camera feed
         cv2.imshow("OCR - Press 'C' to capture", frame)
 
-        # Handle key inputs
-        if keyboard.is_pressed('c'):
+        key = cv2.waitKey(1) & 0xFF
+
+        if key == ord('c'):
             if hold_start is None:
                 hold_start = time.time()
             else:
@@ -86,21 +87,23 @@ def main():
                     cv2.destroyAllWindows()
                     sys.exit(0)
         else:
-            hold_start = None  # Reset if 'C' is released
+            # Only capture if 'c' is *pressed shortly*, not long-press
+            if hold_start is not None:
+                short_press_duration = time.time() - hold_start
+                if short_press_duration < 3.5 and capture_ready:
+                    print("Captured frame for OCR.")
+                    captured_frame = frame.copy()
+                    process_image(captured_frame)
+                    capture_ready = False
+                    time.sleep(1)  # Prevent fast retriggers
+            hold_start = None
+            capture_ready = True
 
-        if keyboard.is_pressed('q'):
+        if key == ord('q'):
             print("Exiting...")
             engine.say("Shutting down OCR.")
             engine.runAndWait()
             break
-
-        if keyboard.is_pressed('c') and hold_start is None:
-            print("Captured frame for OCR.")
-            captured_frame = frame.copy()
-            process_image(captured_frame)
-            time.sleep(1)  # Prevent multiple triggers
-
-        cv2.waitKey(1)
 
     cap.release()
     cv2.destroyAllWindows()

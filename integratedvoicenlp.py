@@ -9,9 +9,9 @@ from transformers import AutoTokenizer, AutoModel
 import torch.nn.functional as F
 import wave
 import io
-import keyboard  # For real-time key press detection
 import subprocess
 import sys
+from pynput import keyboard as pynput_keyboard  # ✅ replacement for 'keyboard'
 
 # === TEXT-TO-SPEECH SETUP ===
 engine = pyttsx3.init()
@@ -120,6 +120,29 @@ def match_command(text):
             return commands[i], sim
     return None, None
 
+# === GLOBAL KEY STATE (using pynput) ===
+c_key_pressed = False
+
+def on_press(key):
+    global c_key_pressed
+    try:
+        if key.char == 'c':
+            c_key_pressed = True
+    except AttributeError:
+        pass
+
+def on_release(key):
+    global c_key_pressed
+    try:
+        if key.char == 'c':
+            c_key_pressed = False
+    except AttributeError:
+        pass
+
+# Start the listener in a separate thread
+listener = pynput_keyboard.Listener(on_press=on_press, on_release=on_release)
+listener.start()
+
 # === FUNCTION TO LAUNCH OBJECT DETECTION ===
 def open_object_detection():
     speak("Opening object detection. Hold 'C' for 3.5 seconds to return.")
@@ -128,7 +151,7 @@ def open_object_detection():
 
     c_hold_start = None
     while True:
-        if keyboard.is_pressed('c'):
+        if c_key_pressed:
             if c_hold_start is None:
                 c_hold_start = time.time()
             elif time.time() - c_hold_start >= 3.5:
@@ -148,7 +171,7 @@ def open_ocr():
 
     c_hold_start = None
     while True:
-        if keyboard.is_pressed('c'):
+        if c_key_pressed:
             if c_hold_start is None:
                 c_hold_start = time.time()
             elif time.time() - c_hold_start >= 3.5:
@@ -164,7 +187,7 @@ def open_ocr():
 print("🤖 Ready. 🔵 Press and hold 'C' to speak. Say 'exit' to stop.")
 try:
     while True:
-        if keyboard.is_pressed('c'):
+        if c_key_pressed:
             time.sleep(0.2)  # debounce
 
             speak("Please speak after the tone.")

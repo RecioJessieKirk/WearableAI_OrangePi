@@ -11,3 +11,4 @@ tokenizer.json
 distilbert-base-nli-stsb-mean-tokens
 !local_model
 !local_model/
+backupfiles
