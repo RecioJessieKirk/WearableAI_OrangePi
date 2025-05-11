@@ -36,7 +36,7 @@ def main():
     model = torch.hub.load(
         './yolov5',
         'custom',
-        path=r'yolomodels/yolov5n.pt',
+        path=r'yolomodels/best_160_20_20.pt',
         source='local',
         force_reload=True
     ).to(device)

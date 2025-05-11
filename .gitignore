@@ -12,3 +12,17 @@ distilbert-base-nli-stsb-mean-tokens
 !local_model
 !local_model/
 backupfiles
+test_image_vids
+yolomodels/best_25_no_mosaic.pt
+best_100_5-2-25.pt
+best_100_50_50.pt
+best_exp46.pt
+best_120_40_40.pt
+best_120_mosaic.pt
+best_160_20_20.pt
+best_200.pt
+best_final_split.pt
+best_scratch_2.pt
+best_scratch.pt
+yolov5n-fp16.tflite
+conversion_model.ipynb

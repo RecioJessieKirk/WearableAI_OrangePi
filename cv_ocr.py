@@ -51,7 +51,7 @@ def process_image(image):
 
 # ✅ Main camera loop
 def main():
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     if not cap.isOpened():
         print("Camera not available.")
         return
