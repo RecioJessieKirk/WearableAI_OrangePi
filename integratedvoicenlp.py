@@ -54,14 +54,21 @@ def get_embedding(text):
     counted = torch.clamp(mask.sum(dim=1), min=1e-9)
     return summed / counted
 
-# === PREDEFINED COMMANDS ===
-commands = [
-    "Open Object Detection",
-    "Read the text",
-    "Exit"
-]
-command_embeddings = [get_embedding(cmd) for cmd in commands]
+# === PREDEFINED COMMANDS WITH ALIASES ===
+command_map = {
+    "Open Object Detection": ["open object detection", "what is in front of me", "what's in front of me"],
+    "Read the text": ["read the text"],
+    "Exit": ["exit"]
+}
 threshold = 0.6
+
+# Compute embeddings for all aliases and map back to their main command
+alias_to_command = {}
+alias_embeddings = []
+for command, aliases in command_map.items():
+    for alias in aliases:
+        alias_to_command[alias] = command
+        alias_embeddings.append((alias, get_embedding(alias)))
 
 # === MICROPHONE CONFIG ===
 CHUNK = 1024
@@ -114,10 +121,10 @@ def transcribe(audio_bytes):
 # === NLP COMMAND MATCHING ===
 def match_command(text):
     user_embed = get_embedding(text)
-    for i, cmd_embed in enumerate(command_embeddings):
-        sim = F.cosine_similarity(user_embed, cmd_embed).item()
+    for alias, alias_embed in alias_embeddings:
+        sim = F.cosine_similarity(user_embed, alias_embed).item()
         if sim >= threshold:
-            return commands[i], sim
+            return alias_to_command[alias], sim
     return None, None
 
 # === GLOBAL KEY STATE (using pynput) ===
@@ -146,9 +153,7 @@ listener.start()
 # === FUNCTION TO LAUNCH OBJECT DETECTION ===
 def open_object_detection():
     speak("Opening object detection. Hold 'C' for 3.5 seconds to return.")
-
     process = subprocess.Popen([sys.executable, "cv_yolov5_pt.py"])
-
     c_hold_start = None
     while True:
         if c_key_pressed:
@@ -160,15 +165,12 @@ def open_object_detection():
                 break
         else:
             c_hold_start = None
-
         time.sleep(0.1)
 
 # === FUNCTION TO LAUNCH OCR ===
 def open_ocr():
     speak("Opening text reading. Hold 'C' for 3.5 seconds to return.")
-
     process = subprocess.Popen([sys.executable, "cv_ocr.py"])
-
     c_hold_start = None
     while True:
         if c_key_pressed:
@@ -180,7 +182,6 @@ def open_ocr():
                 break
         else:
             c_hold_start = None
-
         time.sleep(0.1)
 
 # === MAIN LOOP ===
@@ -189,7 +190,6 @@ try:
     while True:
         if c_key_pressed:
             time.sleep(0.2)  # debounce
-
             speak("Please speak after the tone.")
             play_beep()
 
@@ -213,10 +213,8 @@ try:
 
                 if matched_cmd == "Open Object Detection":
                     open_object_detection()
-
                 elif matched_cmd == "Read the text":
                     open_ocr()
-
                 elif matched_cmd == "Exit":
                     speak("Exiting the program.")
                     break

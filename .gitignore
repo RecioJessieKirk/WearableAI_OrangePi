@@ -26,3 +26,5 @@ best_scratch_2.pt
 best_scratch.pt
 yolov5n-fp16.tflite
 conversion_model.ipynb
+best_copy_120pt.pt
+best_custom.pt
