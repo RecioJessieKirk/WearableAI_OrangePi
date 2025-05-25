@@ -1,112 +1,113 @@
 import easyocr
 import cv2
 import pyttsx3
-import time
 import warnings
-import sys  # ➡️ added for clean exit
+import sys
+import subprocess
+import time
+from pynput import keyboard
 
-# ✅ Suppress warnings
+# Suppress warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-# ✅ Initialize TTS engine
+# Initialize TTS engine
 engine = pyttsx3.init()
 
-# ✅ Initialize EasyOCR reader with custom weights
+def speak(text):
+    print(f"[TTS] {text}")
+    engine.say(text)
+    engine.runAndWait()
+    print("[TTS] done")
+
+# Initialize EasyOCR reader
 reader = easyocr.Reader(
     ['en'],
     model_storage_directory='ocr_model',
     download_enabled=False
 )
 
-# ✅ Function to extract and read text
+# Global flag set by pynput listener
+capture_flag = False
+
+def on_press(key):
+    global capture_flag
+    try:
+        if key.char.lower() == 'c':
+            print("[INPUT] 'C' pressed")
+            capture_flag = True
+    except AttributeError:
+        pass
+
 def process_image(image):
+    print("[OCR] Starting text detection")
     results = reader.readtext(image)
     if not results:
-        print("No text detected.")
-        engine.say("No text detected.")
-        engine.runAndWait()
+        print("[OCR] No text detected")
+        speak("No text detected.")
         return
 
-    for (_, text, conf) in results:
-        print(f"Detected: {text} (Confidence: {conf:.2f})")
+    texts = [text for (_, text, _) in results]
+    joined = '. '.join(texts) + '.'
+    print(f"[OCR] Detected combined text: {joined}")
+    speak(joined)
 
-    # Prompt the user
-    engine.say("Do you want me to read the text?")
-    engine.runAndWait()
-    print("[Y] Read | [N] Skip")
-
-    while True:
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('y'):
-            engine.say("Reading the text now.")
-            for (_, text, _) in results:
-                engine.say(text)
-            engine.runAndWait()
-            break
-        elif key == ord('n'):
-            print("Skipped.")
-            engine.say("Okay, skipping.")
-            engine.runAndWait()
-            break
-
-# ✅ Main camera loop
 def main():
+    global capture_flag
+
+    # Start key listener
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+    print("[INIT] Key listener started")
+
     cap = cv2.VideoCapture(1)
     if not cap.isOpened():
-        print("Camera not available.")
+        print("[ERROR] Camera not available.")
+        speak("Camera not available.")
+        listener.stop()
         return
+    print("[INIT] Camera opened")
 
-    print("Press 'C' to capture and process text.")
-    print("Hold 'C' for 3.5 seconds to return to NLP.")
-    print("Press 'Q' to quit immediately.")
-
-    hold_start = None  # ➡️ To track how long 'C' is held
-    capture_ready = True  # ➡️ Control capture behavior
+    speak("Press C to capture and read text.")
 
     while True:
         ret, frame = cap.read()
         if not ret:
-            print("Failed to read frame.")
+            print("[ERROR] Failed to read frame.")
+            speak("Failed to read frame.")
             break
 
-        # Display the live camera feed
-        cv2.imshow("OCR - Press 'C' to capture", frame)
+        cv2.imshow("OCR - press C to capture", frame)
 
-        key = cv2.waitKey(1) & 0xFF
+        if capture_flag:
+            print("[FLOW] capture_flag detected!")
+            capture_flag = False
 
-        if key == ord('c'):
-            if hold_start is None:
-                hold_start = time.time()
-            else:
-                held_time = time.time() - hold_start
-                if held_time >= 3.5:
-                    print("Returning to NLP...")
-                    engine.say("Returning to voice control.")
-                    engine.runAndWait()
-                    cap.release()
-                    cv2.destroyAllWindows()
-                    sys.exit(0)
-        else:
-            # Only capture if 'c' is *pressed shortly*, not long-press
-            if hold_start is not None:
-                short_press_duration = time.time() - hold_start
-                if short_press_duration < 3.5 and capture_ready:
-                    print("Captured frame for OCR.")
-                    captured_frame = frame.copy()
-                    process_image(captured_frame)
-                    capture_ready = False
-                    time.sleep(1)  # Prevent fast retriggers
-            hold_start = None
-            capture_ready = True
+            captured = frame.copy()
+            cap.release()
+            cv2.destroyAllWindows()
+            print("[FLOW] Camera released and window closed")
 
-        if key == ord('q'):
-            print("Exiting...")
-            engine.say("Shutting down OCR.")
-            engine.runAndWait()
+            speak("Analyzing captured text.")
+            process_image(captured)
+
+            speak("Returning to voice interface.")
+            time.sleep(0.5)
+
+            listener.stop()
+            print("[FLOW] Listener stopped, launching NLP script")
+
+            # Relaunch the NLP script
+            subprocess.run([sys.executable, "integratedvoicenlp.py"])
+            return
+
+        if cv2.waitKey(1) & 0xFF == 27:
+            print("[INPUT] ESC pressed, exiting")
             break
 
     cap.release()
     cv2.destroyAllWindows()
+    listener.stop()
+    print("[CLEANUP] Exited main loop and cleaned up")
 
 if __name__ == "__main__":
     main()

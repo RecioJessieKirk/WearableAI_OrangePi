@@ -4,7 +4,8 @@ import pyttsx3
 import time
 import numpy as np
 import warnings
-import subprocess  # ✅ To return to NLP interface
+import subprocess
+import sys
 from pynput import keyboard
 
 warnings.simplefilter("ignore", category=FutureWarning)
@@ -26,16 +27,32 @@ def main():
                 return index
         return None
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # === Set device with fallback ===
+    if torch.cuda.is_available():
+        try:
+            device = torch.device("cuda")
+            torch.cuda.empty_cache()
+        except Exception as e:
+            print(f"[CUDA] Error: {e}")
+            device = torch.device("cpu")
+    else:
+        device = torch.device("cpu")
+
     speak(f"Using device: {device}")
-    model = torch.hub.load(
-        './yolov5',
-        'custom',
-        path=r'yolomodels/yolov5n.pt',
-        source='local',
-        force_reload=True
-    ).to(device)
-    model.eval()
+
+    try:
+        model = torch.hub.load(
+            './yolov5',
+            'custom',
+            path='yolomodels/yolov5n.pt',
+            source='local',
+            force_reload=True
+        ).to(device)
+        model.eval()
+    except Exception as e:
+        speak("Failed to load model.")
+        print(f"[ERROR] Model load failed: {e}")
+        return
 
     c_pressed = False
     esc_pressed = False
@@ -127,9 +144,9 @@ def main():
         else:
             speak("I couldn't identify anything clearly.")
 
-    # ✅ Return to NLP
+    # === Relaunch the NLP interface ===
     speak("Returning to NLP interface.")
-    subprocess.run(["python3", "integratedvoicenlp.py"])
+    subprocess.run([sys.executable, "integratedvoicenlp.py"])
 
 if __name__ == "__main__":
     main()
