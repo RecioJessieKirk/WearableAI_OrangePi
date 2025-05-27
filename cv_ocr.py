@@ -17,7 +17,6 @@ def speak(text):
     print(f"[TTS] {text}")
     engine.say(text)
     engine.runAndWait()
-    print("[TTS] done")
 
 # Initialize EasyOCR reader
 reader = easyocr.Reader(
@@ -33,41 +32,40 @@ def on_press(key):
     global capture_flag
     try:
         if key.char.lower() == 'c':
-            print("[INPUT] 'C' pressed")
+            print("[INPUT] 'C' pressed")  # DEBUG
             capture_flag = True
     except AttributeError:
-        pass
+        pass  # ignore special keys
 
 def process_image(image):
-    print("[OCR] Starting text detection")
+    print("[OCR] Starting text detection")  # DEBUG
     results = reader.readtext(image)
     if not results:
-        print("[OCR] No text detected")
+        print("[OCR] No text detected")     # DEBUG
         speak("No text detected.")
         return
 
     texts = [text for (_, text, _) in results]
     joined = '. '.join(texts) + '.'
-    print(f"[OCR] Detected combined text: {joined}")
+    print(f"[OCR] Detected combined text: {joined}")  # DEBUG
     speak(joined)
 
 def main():
     global capture_flag
 
-    # Start key listener
+    # Start pynput listener in background
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
-    print("[INIT] Key listener started")
+    print("[INIT] Key listener started")   # DEBUG
 
     cap = cv2.VideoCapture(1)
     if not cap.isOpened():
         print("[ERROR] Camera not available.")
         speak("Camera not available.")
-        listener.stop()
         return
-    print("[INIT] Camera opened")
+    print("[INIT] Camera opened")          # DEBUG
 
-    speak("Press C to capture and read text.")
+    speak("Press the Button to capture and read text.")
 
     while True:
         ret, frame = cap.read()
@@ -76,38 +74,40 @@ def main():
             speak("Failed to read frame.")
             break
 
-        cv2.imshow("OCR - press C to capture", frame)
+        cv2.imshow("OCR - press the Button to capture", frame)
 
+        # Poll the capture_flag
         if capture_flag:
-            print("[FLOW] capture_flag detected!")
+            print("[FLOW] capture_flag detected!")  # DEBUG
             capture_flag = False
 
+            # Freeze frame
             captured = frame.copy()
             cap.release()
             cv2.destroyAllWindows()
-            print("[FLOW] Camera released and window closed")
+            print("[FLOW] Camera released and window closed")  # DEBUG
 
             speak("Analyzing captured text.")
             process_image(captured)
 
-            speak("Returning to voice interface.")
-            time.sleep(0.5)
+            speak("Going back to listening mode.")
+            time.sleep(0.5)   # allow TTS flush
 
             listener.stop()
-            print("[FLOW] Listener stopped, launching NLP script")
+            print("[FLOW] Listener stopped, launching NLP script")  # DEBUG
 
-            # Relaunch the NLP script
-            subprocess.run([sys.executable, "integratedvoicenlp.py"])
+            subprocess.Popen([sys.executable, "integratedvoicenlp.py"])
             return
 
+        # Allow ESC to break if needed
         if cv2.waitKey(1) & 0xFF == 27:
-            print("[INPUT] ESC pressed, exiting")
+            print("[INPUT] ESC pressed, exiting")  # DEBUG
             break
 
     cap.release()
     cv2.destroyAllWindows()
     listener.stop()
-    print("[CLEANUP] Exited main loop and cleaned up")
+    print("[CLEANUP] Exited main loop and cleaned up")  # DEBUG
 
 if __name__ == "__main__":
     main()

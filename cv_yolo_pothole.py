@@ -49,7 +49,7 @@ if not cap.isOpened():
     speak("Camera not available.")
     sys.exit(1)
 
-speak("Live detection started. Press and hold 'C' for 3 seconds to return.")
+speak("Live detection started. Press and hold the Button for 3 seconds to return.")
 
 last_announce_time = 0
 c_key_pressed_time = None
@@ -107,7 +107,7 @@ while True:
         if c_key_pressed_time is None:
             c_key_pressed_time = time.time()
         elif time.time() - c_key_pressed_time >= 3:
-            speak("Returning to integrated voice NLP.")
+            speak("Going back to listening mode.")
             break
     else:
         c_key_pressed_time = None

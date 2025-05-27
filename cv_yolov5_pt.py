@@ -15,7 +15,7 @@ def main():
     engine = pyttsx3.init()
 
     def speak(text):
-        print(text)
+        print(f"[TTS] {text}")
         engine.say(text)
         engine.runAndWait()
 
@@ -50,7 +50,7 @@ def main():
         ).to(device)
         model.eval()
     except Exception as e:
-        speak("Failed to load model.")
+        speak("Failed to load object detection model.")
         print(f"[ERROR] Model load failed: {e}")
         return
 
@@ -80,7 +80,7 @@ def main():
         speak("Camera failed to open. Exiting.")
         return
 
-    speak("Camera opened. Press C to capture.")
+    speak("Camera is ready. Press the Button to take a look.")
 
     try:
         while True:
@@ -89,18 +89,17 @@ def main():
                 speak("Failed to grab frame.")
                 break
 
-            cv2.imshow("Live Camera - Press C to Capture", frame)
+            cv2.imshow("Live Camera - Press the Button", frame)
 
             if c_pressed:
-                speak("Image captured. Closing camera.")
                 frame_to_analyze = frame.copy()
                 break
 
             if esc_pressed:
-                speak("ESC pressed. Exiting.")
+                speak("Exiting.")
                 break
 
-            if cv2.getWindowProperty("Live Camera - Press C to Capture", cv2.WND_PROP_VISIBLE) < 1:
+            if cv2.getWindowProperty("Live Camera - Press the Button", cv2.WND_PROP_VISIBLE) < 1:
                 speak("Window closed manually.")
                 break
 
@@ -115,7 +114,7 @@ def main():
         listener.stop()
 
     if frame_to_analyze is not None:
-        speak("Analyzing image...")
+        speak("Analyzing what I see...")
 
         h, w, _ = frame_to_analyze.shape
         center_x, center_y = w // 2, h // 2
@@ -145,7 +144,7 @@ def main():
             speak("I couldn't identify anything clearly.")
 
     # === Relaunch the NLP interface ===
-    speak("Returning to NLP interface.")
+    speak("Going back to listening mode.")
     subprocess.run([sys.executable, "integratedvoicenlp.py"])
 
 if __name__ == "__main__":
