@@ -58,8 +58,10 @@ command_map = {
     "Open Object Detection": ["open object detection", "what is in front of me", "what's in front of me"],
     "Read the text": ["read the text"],
     "Open Pothole Detection": ["pothole detection", "detect pothole", "detect road damage"],
+    "Check Banknote": ["how much money", "count the money", "money detector", "scan bills", "detect banknotes", "total money", "identify money"],
     "Exit": ["exit"]
 }
+
 threshold = 0.6
 alias_to_command = {}
 alias_embeddings = []
@@ -143,6 +145,8 @@ def run_script_and_exit(script_name):
         speak("Loading Text Reader. Please wait.")
     elif script_name == "cv_yolo_pothole.py":
         speak("Loading Road Inspector. Please wait.")
+    elif script_name == "cv_yolo_banknote.py":
+        speak("Loading Money Counter. Please wait.")
     else:
         speak(f"Opening {script_name}. Please wait.")
 
@@ -158,6 +162,9 @@ def open_ocr():
 
 def open_pothole_detection():
     run_script_and_exit("cv_yolo_pothole.py")
+
+def open_banknote_detector():
+    run_script_and_exit("cv_yolo_banknote.py")
 
 # === MAIN LOOP ===
 startup_message = "Ready. Press and hold the Button to speak. Say 'exit' to stop."
@@ -188,6 +195,8 @@ try:
                     open_ocr()
                 elif matched_cmd == "Open Pothole Detection":
                     open_pothole_detection()
+                elif matched_cmd == "Check Banknote":
+                    open_banknote_detector()
                 elif matched_cmd == "Exit":
                     speak("Exiting the program.")
                     listener.stop()
