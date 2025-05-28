@@ -29,3 +29,8 @@ conversion_model.ipynb
 best_copy_120pt.pt
 best_custom.pt
 cv_yolo_banknote copy.py
+cv_ocr copy.py
+cv_yolov5_pt copy.py
+backup_2/
+backup_3/
+backup_4_prep_comp/
