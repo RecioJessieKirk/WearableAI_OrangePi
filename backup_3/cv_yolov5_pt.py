@@ -9,11 +9,10 @@ import sys
 import whisper
 import pyaudio
 import threading
-import gc
 
 warnings.simplefilter("ignore", category=FutureWarning)
 
-# === TTS SETUP ===
+# === TTS SETUP
 engine = pyttsx3.init()
 engine.setProperty("rate", 175)
 
@@ -22,14 +21,14 @@ def speak(text):
     engine.say(text)
     engine.runAndWait()
 
-# === WHISPER LOAD ===
+# === WHISPER TINY LOAD
 whisper_model = whisper.load_model("tiny", download_root="local_whisper_model")
 
-# === CONTROL FLAGS ===
+# === CONTROL FLAGS
 trigger_detect = threading.Event()
 trigger_stop = threading.Event()
 
-# === VOICE THREAD ===
+# === VOICE LISTENER THREAD
 def listen_for_phrases():
     RATE = 16000
     CHUNK = 1024
@@ -42,10 +41,10 @@ def listen_for_phrases():
     print("[VOICE] Listening for 'what is it' or 'stop'...")
 
     while not trigger_stop.is_set():
-        data = stream.read(CHUNK, exception_on_overflow=False)
+        data = stream.read(CHUNK)
         frames.append(data)
 
-        if len(frames) >= int(RATE / CHUNK * 1.5):  # ~1.5s chunks
+        if len(frames) >= int(RATE / CHUNK * 1.2):
             audio_bytes = b"".join(frames)
             audio_np = np.frombuffer(audio_bytes, np.int16).astype(np.float32) / 32768.0
 
@@ -67,9 +66,9 @@ def listen_for_phrases():
     stream.close()
     p.terminate()
 
-# === MAIN FUNCTION ===
+# === MAIN FUNCTION
 def main():
-    # === DEVICE SETUP ===
+    # === DEVICE SETUP
     if torch.cuda.is_available():
         try:
             device = torch.device("cuda")
@@ -82,7 +81,7 @@ def main():
 
     speak(f"Using device: {device}")
 
-    # === LOAD YOLOv5 MODEL ===
+    # === MODEL LOAD
     try:
         model = torch.hub.load(
             './yolov5',
@@ -97,7 +96,7 @@ def main():
         print(f"[ERROR] Model load failed: {e}")
         return
 
-    # === CAMERA SETUP ===
+    # === CAMERA INIT
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         speak("Camera not available.")
@@ -106,11 +105,12 @@ def main():
     cv2.namedWindow("Object Detector")
     speak("Camera is live. Say 'what is it' to identify. Say 'stop' to go back.")
 
-    # === START VOICE LISTENER THREAD ===
+    # === START WHISPER THREAD
     voice_thread = threading.Thread(target=listen_for_phrases)
     voice_thread.daemon = True
     voice_thread.start()
 
+    # === LIVE LOOP
     while not trigger_stop.is_set():
         ret, frame = cap.read()
         if not ret:
@@ -121,6 +121,7 @@ def main():
         results = model(frame_rgb)
         detections = results.pandas().xyxy[0]
 
+        # Draw all boxes
         for _, det in detections.iterrows():
             label = det['name']
             x1, y1, x2, y2 = int(det['xmin']), int(det['ymin']), int(det['xmax']), int(det['ymax'])
@@ -130,6 +131,7 @@ def main():
 
         cv2.imshow("Object Detector", frame)
 
+        # Respond if trigger activated
         if trigger_detect.is_set():
             trigger_detect.clear()
             h, w = frame.shape[:2]
@@ -156,18 +158,9 @@ def main():
         if cv2.waitKey(1) & 0xFF == 27:
             break
 
-    # === CLEANUP ===
+    # === CLEANUP
     cap.release()
     cv2.destroyAllWindows()
-    trigger_stop.set()
-
-    # === CLEANUP RESOURCES ===
-    del model
-    
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
     speak("Going back to listening mode.")
     subprocess.run([sys.executable, "integratedvoicenlp.py"])
 

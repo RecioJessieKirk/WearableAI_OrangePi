@@ -9,7 +9,6 @@ import sys
 import pyaudio
 import whisper
 import threading
-import gc
 
 warnings.simplefilter("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=FutureWarning, module="torch")
@@ -41,7 +40,7 @@ def listen_for_yes():
     frames = []
 
     while not trigger_capture.is_set():
-        data = stream.read(CHUNK, exception_on_overflow=False)
+        data = stream.read(CHUNK)
         frames.append(data)
 
         if len(frames) >= int(RATE / CHUNK * 1.2):
@@ -138,6 +137,7 @@ def main():
     speak("Camera is ready. Say 'yes' when you're ready.")
     cv2.namedWindow("Banknote Scanner")
 
+    # Start voice listener in background
     voice_thread = threading.Thread(target=listen_for_yes)
     voice_thread.daemon = True
     voice_thread.start()
@@ -156,7 +156,7 @@ def main():
             frame_to_analyze = frame.copy()
             break
 
-        if cv2.waitKey(1) & 0xFF == 27:
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC to exit
             break
 
     cap.release()
@@ -180,12 +180,6 @@ def main():
         speak(f"Total money is {total} pesos.")
     else:
         speak("I couldn't recognize any banknotes.")
-
-    # === Memory Cleanup ===
-    
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
 
     speak("Going back to listening mode.")
     subprocess.run([sys.executable, "integratedvoicenlp.py"])

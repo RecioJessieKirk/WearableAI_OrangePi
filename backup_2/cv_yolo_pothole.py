@@ -5,63 +5,20 @@ import warnings
 import time
 import subprocess
 import sys
-import threading
-import pyaudio
-import numpy as np
-import whisper
 
 # === Suppress Warnings ===
 warnings.simplefilter("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=FutureWarning, module="torch")
 
-# === TTS setup ===
+# === Initialize TTS engine ===
 engine = pyttsx3.init()
-engine.setProperty("rate", 175)
 
 def speak(text):
     print(f"[SPEAK]: {text}")
     engine.say(text)
     engine.runAndWait()
 
-# === Whisper setup ===
-whisper_model = whisper.load_model("tiny", download_root="local_whisper_model")
-
-# === Voice trigger flag ===
-trigger_stop = threading.Event()
-
-def listen_for_stop():
-    RATE = 16000
-    CHUNK = 1024
-    FORMAT = pyaudio.paInt16
-    CHANNELS = 1
-    p = pyaudio.PyAudio()
-    stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
-    frames = []
-
-    print("[VOICE] Listening for 'go back'...")
-
-    while not trigger_stop.is_set():
-        data = stream.read(CHUNK)
-        frames.append(data)
-
-        if len(frames) >= int(RATE / CHUNK * 1.2):
-            audio_bytes = b"".join(frames)
-            audio_np = np.frombuffer(audio_bytes, np.int16).astype(np.float32) / 32768.0
-            try:
-                result = whisper_model.transcribe(audio_np, fp16=torch.cuda.is_available(), language="en", verbose=False)
-                transcript = result.get("text", "").strip().lower()
-                print(f"[VOICE] Heard: {transcript}")
-                if "go back" in transcript:
-                    trigger_stop.set()
-                    break
-            except Exception as e:
-                print(f"[Whisper error] {e}")
-            frames = []
-
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
-
-# === Device & model setup ===
+# === Set device and load model ===
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 speak(f"Using device: {device}")
 
@@ -76,7 +33,7 @@ model.eval()
 model.conf = 0.4
 
 # === Distance Estimation Parameters ===
-FOCAL_LENGTH = 700
+FOCAL_LENGTH = 700  # Adjust based on your camera
 ASSUMED_OBJECT_WIDTH_CM = 30
 THRESHOLD_DISTANCE_CM = 40
 ANNOUNCE_DELAY = 5  # seconds
@@ -92,18 +49,12 @@ if not cap.isOpened():
     speak("Camera not available.")
     sys.exit(1)
 
-cv2.namedWindow("Pothole Detection")
-speak("Pothole detection started. Say 'go back' when you're done.")
-
-# === Start voice thread ===
-voice_thread = threading.Thread(target=listen_for_stop)
-voice_thread.daemon = True
-voice_thread.start()
+speak("Live detection started. Press and hold the Button for 3 seconds to return.")
 
 last_announce_time = 0
+c_key_pressed_time = None
 
-# === Main loop ===
-while not trigger_stop.is_set():
+while True:
     ret, frame = cap.read()
     if not ret:
         speak("Failed to read frame.")
@@ -111,7 +62,7 @@ while not trigger_stop.is_set():
 
     frame_height, frame_width = frame.shape[:2]
     frame_center_x = frame_width // 2
-    margin = int(frame_width * 0.1)
+    margin = int(frame_width * 0.1)  # 10% margin for "middle"
 
     results = model(frame)
     detections = results.pandas().xyxy[0]
@@ -135,25 +86,36 @@ while not trigger_stop.is_set():
         else:
             side = "in the middle"
 
-        # Draw on frame
+        # Draw bounding box and label
         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
         cv2.putText(frame, f"{label} - {int(distance)}cm ({side})", (x1, y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
+        # Speak if object is close enough and delay passed
         if not announced and distance <= THRESHOLD_DISTANCE_CM and (current_time - last_announce_time) > ANNOUNCE_DELAY:
             speak(f"{label} detected at {int(distance)} centimeters {side}")
             last_announce_time = current_time
             announced = True
 
-    cv2.imshow("Pothole Detection", frame)
+    # === Show frame ===
+    cv2.imshow("Live Object Detection", frame)
 
-    if cv2.waitKey(1) & 0xFF == 27:
-        break
+    key = cv2.waitKey(1) & 0xFF
+
+    # Hold 'C' to return after 3 seconds
+    if key == ord('c'):
+        if c_key_pressed_time is None:
+            c_key_pressed_time = time.time()
+        elif time.time() - c_key_pressed_time >= 3:
+            speak("Going back to listening mode.")
+            break
+    else:
+        c_key_pressed_time = None
 
 # === Cleanup ===
 print("Cleaning up...")
 cap.release()
 cv2.destroyAllWindows()
 
-speak("Going back to listening mode.")
+# === Relaunch NLP ===
 subprocess.run([sys.executable, "integratedvoicenlp.py"])
