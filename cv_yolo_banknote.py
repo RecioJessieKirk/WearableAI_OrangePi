@@ -11,6 +11,9 @@ import whisper
 import threading
 import gc
 
+# === MODE TOGGLE ===
+manual_mode = 1  # 0 = GUI (OpenCV windows), 1 = No GUI (headless mode for Orange Pi)
+
 warnings.simplefilter("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=FutureWarning, module="torch")
 
@@ -136,7 +139,9 @@ def main():
         return
 
     speak("Camera is ready. Say 'yes' when you're ready.")
-    cv2.namedWindow("Banknote Scanner")
+
+    if manual_mode == 0:
+        cv2.namedWindow("Banknote Scanner")
 
     voice_thread = threading.Thread(target=listen_for_yes)
     voice_thread.daemon = True
@@ -150,17 +155,21 @@ def main():
             speak("Failed to read from camera.")
             break
 
-        cv2.imshow("Banknote Scanner", frame)
+        if manual_mode == 0:
+            cv2.imshow("Banknote Scanner", frame)
+            if cv2.waitKey(1) & 0xFF == 27:
+                break
 
         if trigger_capture.is_set():
             frame_to_analyze = frame.copy()
             break
 
-        if cv2.waitKey(1) & 0xFF == 27:
-            break
+        if manual_mode == 1:
+            time.sleep(0.05)  # Light sleep to reduce CPU load in headless mode
 
     cap.release()
-    cv2.destroyAllWindows()
+    if manual_mode == 0:
+        cv2.destroyAllWindows()
 
     if frame_to_analyze is None:
         speak("No image captured.")
@@ -182,7 +191,6 @@ def main():
         speak("I couldn't recognize any banknotes.")
 
     # === Memory Cleanup ===
-    
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()

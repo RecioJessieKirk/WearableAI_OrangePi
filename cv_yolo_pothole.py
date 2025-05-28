@@ -13,6 +13,11 @@ import whisper
 # === Suppress Warnings ===
 warnings.simplefilter("ignore", category=FutureWarning)
 
+# === Manual Mode Setting ===
+# 0 = GUI Mode (with camera window)
+# 1 = No GUI Mode (headless, e.g. Orange Pi)
+manual_mode = 1  # Change to 0 to enable GUI
+
 # === TTS setup ===
 engine = pyttsx3.init()
 engine.setProperty("rate", 175)
@@ -92,7 +97,9 @@ if not cap.isOpened():
     speak("Camera not available.")
     sys.exit(1)
 
-cv2.namedWindow("Pothole Detection")
+if manual_mode == 0:
+    cv2.namedWindow("Pothole Detection")
+
 speak("Pothole detection started. Say 'go back' when you're done.")
 
 # === Start voice thread ===
@@ -135,25 +142,28 @@ while not trigger_stop.is_set():
         else:
             side = "in the middle"
 
-        # Draw on frame
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(frame, f"{label} - {int(distance)}cm ({side})", (x1, y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+        # Draw on frame if GUI mode
+        if manual_mode == 0:
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, f"{label} - {int(distance)}cm ({side})", (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
+        # Announce pothole if close and time passed
         if not announced and distance <= THRESHOLD_DISTANCE_CM and (current_time - last_announce_time) > ANNOUNCE_DELAY:
             speak(f"{label} detected at {int(distance)} centimeters {side}")
             last_announce_time = current_time
             announced = True
 
-    cv2.imshow("Pothole Detection", frame)
-
-    if cv2.waitKey(1) & 0xFF == 27:
-        break
+    if manual_mode == 0:
+        cv2.imshow("Pothole Detection", frame)
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC key to quit GUI mode early
+            break
 
 # === Cleanup ===
 print("Cleaning up...")
 cap.release()
-cv2.destroyAllWindows()
+if manual_mode == 0:
+    cv2.destroyAllWindows()
 
 speak("Going back to listening mode.")
 subprocess.run([sys.executable, "integratedvoicenlp.py"])

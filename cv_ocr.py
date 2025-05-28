@@ -12,6 +12,11 @@ import threading
 import torch
 import gc
 
+# === Manual GUI Mode Toggle ===
+# Set to 0 for GUI mode (shows camera feed)
+# Set to 1 for non-GUI/headless mode (no window)
+mode = 1  # <=== CHANGE THIS TO 1 FOR NON-GUI
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 # === TTS Setup ===
@@ -99,7 +104,9 @@ def main():
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-    cv2.namedWindow("OCR Camera")
+
+    if mode == 0:
+        cv2.namedWindow("OCR Camera")
 
     # === EasyOCR Init (after camera is verified)
     try:
@@ -117,18 +124,20 @@ def main():
             speak("Camera read failed.")
             break
 
-        cv2.imshow("OCR Camera", frame)
+        if mode == 0:
+            cv2.imshow("OCR Camera", frame)
 
         if trigger_read.is_set():
             trigger_read.clear()
             speak("Reading text.")
             read_text_from_image(frame.copy(), reader)
 
-        if cv2.waitKey(1) & 0xFF == 27:
+        if mode == 0 and cv2.waitKey(1) & 0xFF == 27:
             break
 
     cap.release()
-    cv2.destroyAllWindows()
+    if mode == 0:
+        cv2.destroyAllWindows()
 
     trigger_stop.set()
     del reader

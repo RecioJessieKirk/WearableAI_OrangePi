@@ -11,6 +11,11 @@ import pyaudio
 import threading
 import gc
 
+# === MANUAL MODE SETTING ===
+# 0 = GUI Mode (with camera window)
+# 1 = No GUI Mode (for Orange Pi optimization)
+manual_mode = 1
+
 warnings.simplefilter("ignore", category=FutureWarning)
 
 # === TTS SETUP ===
@@ -103,7 +108,9 @@ def main():
         speak("Camera not available.")
         return
 
-    cv2.namedWindow("Object Detector")
+    if manual_mode == 0:
+        cv2.namedWindow("Object Detector")
+
     speak("Camera is live. Say 'what is it' to identify. Say 'stop' to go back.")
 
     # === START VOICE LISTENER THREAD ===
@@ -124,11 +131,13 @@ def main():
         for _, det in detections.iterrows():
             label = det['name']
             x1, y1, x2, y2 = int(det['xmin']), int(det['ymin']), int(det['xmax']), int(det['ymax'])
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(frame, f"{label}", (x1, y1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+            if manual_mode == 0:
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(frame, f"{label}", (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
-        cv2.imshow("Object Detector", frame)
+        if manual_mode == 0:
+            cv2.imshow("Object Detector", frame)
 
         if trigger_detect.is_set():
             trigger_detect.clear()
@@ -153,17 +162,18 @@ def main():
             else:
                 speak("I couldn't identify anything clearly.")
 
-        if cv2.waitKey(1) & 0xFF == 27:
-            break
+        if manual_mode == 0:
+            if cv2.waitKey(1) & 0xFF == 27:
+                break
 
     # === CLEANUP ===
     cap.release()
-    cv2.destroyAllWindows()
+    if manual_mode == 0:
+        cv2.destroyAllWindows()
     trigger_stop.set()
 
     # === CLEANUP RESOURCES ===
     del model
-    
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
