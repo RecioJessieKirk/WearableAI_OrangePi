@@ -11,7 +11,6 @@ import subprocess
 import sys
 from pynput import keyboard as pynput_keyboard
 
-# Import the speak function from your tts_handler module
 from tts_handler import speak
 
 print(f"[INFO] NLP started — PID: {os.getpid()}")
@@ -22,7 +21,7 @@ RATE = 16000
 CHANNELS = 1
 FORMAT = pyaudio.paInt16
 SILENCE_THRESHOLD = 500
-SILENCE_DURATION = 1.0
+SILENCE_DURATION = 1.0  # seconds
 
 def cleanup_model(model):
     try:
@@ -68,6 +67,7 @@ def transcribe(audio_bytes, model):
     result = model.transcribe(audio_np, fp16=torch.cuda.is_available(), language="en", verbose=False)
     return result.get("text", "").strip()
 
+# Improved command mapping with aliases
 command_map = {
     "Open Object Detection": ["open object detection", "what is in front of me", "what's in front of me"],
     "Read the text": ["read the text"],
@@ -105,6 +105,7 @@ def match_command(text, alias_to_command, alias_embeddings):
             return alias_to_command[alias], sim
     return None, None
 
+# Using pynput to detect 'c' key press & hold
 c_key_pressed = False
 
 def on_press(key):
@@ -136,7 +137,6 @@ def run_script_and_exit(script_name):
     speak(message_map.get(script_name, f"Opening {script_name}. Please wait."))
 
     listener.stop()
-
     cleanup_model(whisper_model)
     globals()["whisper_model"] = None
 
@@ -154,6 +154,15 @@ def open_pothole_detection():
 
 def open_banknote_detector():
     run_script_and_exit("cv_yolo_banknote_linux.py")
+
+def play_beep():
+    p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paFloat32, channels=1, rate=44100, output=True)
+    beep = (0.5 * np.sin(2 * np.pi * 1000 * np.linspace(0, 0.3, int(44100 * 0.3)))).astype(np.float32)
+    stream.write(beep.tobytes())
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
 
 def main():
     global whisper_model, tokenizer, bert_model
@@ -173,16 +182,10 @@ def main():
     try:
         while True:
             if c_key_pressed:
+                # Debounce & prompt
                 time.sleep(0.2)
                 speak("Please speak after the tone.")
-
-                p = pyaudio.PyAudio()
-                stream = p.open(format=pyaudio.paFloat32, channels=1, rate=44100, output=True)
-                beep = (0.5 * np.sin(2 * np.pi * 1000 * np.linspace(0, 0.3, int(44100 * 0.3)))).astype(np.float32)
-                stream.write(beep.tobytes())
-                stream.stop_stream()
-                stream.close()
-                p.terminate()
+                play_beep()
 
                 audio = record_until_silence()
                 text = transcribe(audio, whisper_model)
@@ -191,6 +194,7 @@ def main():
                     print("No speech detected.")
                     print("Press the Button to speak")
                     continue
+
                 speak(f"You said: {text}")
                 print(f"Recognized Text: {text}")
 
@@ -214,6 +218,7 @@ def main():
                     print("No matching command found.")
                 print("Press the Button to speak")
             time.sleep(0.1)
+
     except KeyboardInterrupt:
         listener.stop()
         print("\nStopped by user.")

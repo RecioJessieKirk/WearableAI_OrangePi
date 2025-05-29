@@ -11,28 +11,29 @@ import threading
 import torch
 import gc
 
-from tts_handler import speak  # Uses your custom Linux TTS handler
+from tts_handler import speak  # Your custom Linux TTS handler
 
 # === Manual GUI Mode Toggle ===
-# Set to 0 for GUI mode (shows camera feed)
-# Set to 1 for non-GUI/headless mode (no window)
-mode = 1  # Set to 1 for headless, 0 for GUI mode
+# 0 = GUI mode (shows camera window)
+# 1 = Headless mode (no GUI)
+mode = 1
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-# === Whisper Setup ===
+# === Load Whisper Model ===
 whisper_model = whisper.load_model("tiny", download_root="local_whisper_model")
 
 # === Control Flags ===
 trigger_read = threading.Event()
 trigger_stop = threading.Event()
 
-# === Voice Thread ===
 def listen_for_commands():
+    """Listen for voice commands 'read' or 'stop' using Whisper."""
     RATE = 16000
     CHUNK = 1024
     FORMAT = pyaudio.paInt16
     CHANNELS = 1
+
     p = pyaudio.PyAudio()
     stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
 
@@ -43,10 +44,12 @@ def listen_for_commands():
         data = stream.read(CHUNK, exception_on_overflow=False)
         frames.append(data)
 
+        # Process audio every ~1.5 seconds
         if len(frames) >= int(RATE / CHUNK * 1.5):
             audio_bytes = b"".join(frames)
             audio_np = np.frombuffer(audio_bytes, np.int16).astype(np.float32) / 32768.0
 
+            # Skip if audio is mostly silence
             if np.abs(audio_np).mean() < 0.01:
                 frames = []
                 continue
@@ -55,35 +58,38 @@ def listen_for_commands():
                 result = whisper_model.transcribe(audio_np, fp16=torch.cuda.is_available(), language="en", verbose=False)
                 transcript = result.get("text", "").strip().lower()
                 print(f"[VOICE] Heard: {transcript}")
+
                 if "read" in transcript:
                     trigger_read.set()
                 elif "stop" in transcript:
                     trigger_stop.set()
                     break
+
             except Exception as e:
                 print(f"[Whisper error] {e}")
+
             frames = []
 
     stream.stop_stream()
     stream.close()
     p.terminate()
 
-# === OCR Function ===
 def read_text_from_image(image, reader):
+    """Perform OCR on the image and speak detected text."""
     print("[OCR] Starting text detection...")
     results = reader.readtext(image)
+
     if not results:
         print("[OCR] No text detected.")
         speak("No text detected.")
         return
+
     texts = [text for (_, text, _) in results]
     joined = '. '.join(texts) + '.'
     print(f"[OCR] Detected: {joined}")
     speak(joined)
 
-# === Main Function ===
 def main():
-    # Start listening in background
     voice_thread = threading.Thread(target=listen_for_commands)
     voice_thread.daemon = True
     voice_thread.start()

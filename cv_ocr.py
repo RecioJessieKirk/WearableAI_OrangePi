@@ -32,7 +32,7 @@ def speak(text):
 whisper_model = whisper.load_model("tiny", download_root="local_whisper_model")
 
 # === Control Flags ===
-trigger_read = threading.Event()
+trigger_capture = threading.Event()
 trigger_stop = threading.Event()
 
 # === Voice Thread ===
@@ -45,7 +45,7 @@ def listen_for_commands():
     stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
 
     frames = []
-    print("[VOICE] Listening for 'read' or 'stop'...")
+    print("[VOICE] Listening for 'what is this' or 'stop'...")
 
     while not trigger_stop.is_set():
         data = stream.read(CHUNK, exception_on_overflow=False)
@@ -63,8 +63,8 @@ def listen_for_commands():
                 result = whisper_model.transcribe(audio_np, fp16=torch.cuda.is_available(), language="en", verbose=False)
                 transcript = result.get("text", "").strip().lower()
                 print(f"[VOICE] Heard: {transcript}")
-                if "read" in transcript:
-                    trigger_read.set()
+                if "what is this" in transcript:
+                    trigger_capture.set()
                 elif "stop" in transcript:
                     trigger_stop.set()
                     break
@@ -116,7 +116,7 @@ def main():
         print(f"[OCR Error] {e}")
         return
 
-    speak("Camera is live. Say 'read' to analyze. Say 'stop' to exit.")
+    speak("Camera is live. Say 'what is this' to analyze. Say 'stop' to exit.")
 
     while not trigger_stop.is_set():
         ret, frame = cap.read()
@@ -127,9 +127,9 @@ def main():
         if mode == 0:
             cv2.imshow("OCR Camera", frame)
 
-        if trigger_read.is_set():
-            trigger_read.clear()
-            speak("Reading text.")
+        if trigger_capture.is_set():
+            trigger_capture.clear()
+            speak("Analyzing text.")
             read_text_from_image(frame.copy(), reader)
 
         if mode == 0 and cv2.waitKey(1) & 0xFF == 27:

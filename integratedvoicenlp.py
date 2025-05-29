@@ -55,7 +55,7 @@ RATE = 16000
 CHANNELS = 1
 FORMAT = pyaudio.paInt16
 SILENCE_THRESHOLD = 500
-SILENCE_DURATION = 1.0
+SILENCE_DURATION = 1.75
 
 def record_until_silence():
     p = pyaudio.PyAudio()
@@ -91,12 +91,51 @@ def transcribe(audio_bytes, model):
 
 # === COMMAND MAP ===
 command_map = {
-    "Open Object Detection": ["open object detection", "what is in front of me", "what's in front of me"],
-    "Read the text": ["read the text"],
-    "Open Pothole Detection": ["pothole detection", "detect pothole", "detect road damage"],
-    "Check Banknote": ["how much money", "count the money", "money detector", "scan bills", "detect banknotes", "total money", "identify money"],
-    "Exit": ["exit"]
+    "Open Object Detection": [
+        "open object detection",
+        "what is in front of me",
+        "what's in front of me",
+        "identify object",
+        "tell me what’s in the way",
+        "object check",
+        "spot objects",
+        "let me know what’s in front"
+    ],
+    "Read the text": [
+        "read the text",
+        "read this",
+        "can you read this",
+        "help me read this",
+        "read what’s in front of me"
+    ],
+    "Open Pothole Detection": [
+        "pothole detection",
+        "detect pothole",
+        "detect road damage",
+        "check pothole",
+        "check road damage",
+        "can you check if there is a pothole in front of me",
+        "check the road condition",
+        "any road damage"
+    ],
+    "Check Banknote": [
+        "how much money",
+        "count the money",
+        "money detector",
+        "scan bills",
+        "detect banknotes",
+        "total money",
+        "identify money",
+        "scan the bill",
+        "check total money",
+        "how much money do i have",
+        "what bill is this"
+    ],
+    "Exit": [
+        "exit"
+    ]
 }
+
 threshold = 0.6
 
 def prepare_alias_embeddings(tokenizer, bert_model):
@@ -147,10 +186,7 @@ def run_script_and_exit(script_name):
         "cv_yolo_banknote.py": "Loading Money Counter. Please wait."
     }.get(script_name, f"Opening {script_name}. Please wait."))
 
-    # Stop listener before running subprocess
     listener.stop()
-
-    # Cleanup and delete whisper model before exiting
     cleanup_model(whisper_model)
     globals()["whisper_model"] = None
 
@@ -174,7 +210,6 @@ def main():
     global whisper_model, tokenizer, bert_model
 
     whisper_model = load_whisper()
-
     bert_path = "local_model/distilbert-base-nli-stsb-mean-tokens"
     tokenizer = AutoTokenizer.from_pretrained(bert_path, local_files_only=True)
     bert_model = AutoModel.from_pretrained(bert_path, local_files_only=True)
@@ -200,11 +235,13 @@ def main():
 
                 audio = record_until_silence()
                 text = transcribe(audio, whisper_model)
+
                 if not text:
-                    speak("I didn't detect any speech.")
+                    speak("I didn't hear that, Please try again.")
                     print("No speech detected.")
-                    print("Press the Button to speak")
+                    speak("Press the Button to speak")
                     continue
+
                 speak(f"You said: {text}")
                 print(f"Recognized Text: {text}")
                 matched_cmd, sim = match_command(text.lower(), alias_to_command, alias_embeddings)
@@ -223,15 +260,15 @@ def main():
                         listener.stop()
                         break
                 else:
-                    speak("Sorry, I didn't understand that.")
+                    speak("Sorry, I didn't understand that. Please try again.")
                     print("No matching command found.")
-                print("Press the Button to speak")
+
+                speak("Press the Button to speak")
             time.sleep(0.1)
     except KeyboardInterrupt:
         listener.stop()
         print("\nStopped by user.")
     finally:
-        # Cleanup models before exit
         cleanup_model(whisper_model)
         cleanup_model(bert_model)
 
