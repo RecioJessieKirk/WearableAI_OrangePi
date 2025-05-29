@@ -136,7 +136,7 @@ def main():
         torch.cuda.empty_cache()
 
     speak("Going back to listening mode.")
-    subprocess.run([sys.executable, "integratedvoicenlp.py"])
+    subprocess.run([sys.executable, "integratedvoicenlp_linux.py"])
 
 if __name__ == "__main__":
     main()

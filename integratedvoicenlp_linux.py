@@ -128,10 +128,10 @@ listener.start()
 
 def run_script_and_exit(script_name):
     message_map = {
-        "cv_yolov5_pt.py": "Loading Object Identifier. Please wait.",
-        "cv_ocr.py": "Loading Text Reader. Please wait.",
-        "cv_yolo_pothole.py": "Loading Road Inspector. Please wait.",
-        "cv_yolo_banknote.py": "Loading Money Counter. Please wait."
+        "cv_yolov5_pt_linux.py": "Loading Object Identifier. Please wait.",
+        "cv_ocr_linux.py": "Loading Text Reader. Please wait.",
+        "cv_yolo_pothole_linux.py": "Loading Road Inspector. Please wait.",
+        "cv_yolo_banknote_linux.py": "Loading Money Counter. Please wait."
     }
     speak(message_map.get(script_name, f"Opening {script_name}. Please wait."))
 
@@ -144,16 +144,16 @@ def run_script_and_exit(script_name):
     sys.exit(0)
 
 def open_object_detection():
-    run_script_and_exit("cv_yolov5_pt.py")
+    run_script_and_exit("cv_yolov5_pt_linux.py")
 
 def open_ocr():
-    run_script_and_exit("cv_ocr.py")
+    run_script_and_exit("cv_ocr_linux.py")
 
 def open_pothole_detection():
-    run_script_and_exit("cv_yolo_pothole.py")
+    run_script_and_exit("cv_yolo_pothole_linux.py")
 
 def open_banknote_detector():
-    run_script_and_exit("cv_yolo_banknote.py")
+    run_script_and_exit("cv_yolo_banknote_linux.py")
 
 def main():
     global whisper_model, tokenizer, bert_model
