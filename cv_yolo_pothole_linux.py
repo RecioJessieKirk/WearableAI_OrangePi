@@ -157,5 +157,5 @@ cap.release()
 if manual_mode == 0:
     cv2.destroyAllWindows()
 
-speak("Going back to listening mode.")
+speak("Going back to listening mode..")
 subprocess.run([sys.executable, "integratedvoicenlp.py"])
